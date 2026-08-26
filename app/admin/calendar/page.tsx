@@ -192,7 +192,6 @@ export default function CalendarPage() {
                             padding: '4px 6px',
                             borderRadius: '3px',
                             marginBottom: '4px',
-                            truncate: true,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
