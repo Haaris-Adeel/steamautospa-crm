@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Heritage — deep navy (primary) */
+  --heritage-50: #EEF2F9;
+  --heritage-500: #1a3a52;
+  --heritage-600: #0f2437;
+
+  /* Golden — warm brass (accent) */
+  --golden-300: #E1C9A5;
+  --golden-400: #D7B787;
+  --golden-500: #B78E58;
+  --golden-600: #926F46;
+
+  /* Canvas — warm off-white (backgrounds) */
+  --canvas-100: #F9F6F0;
+  --canvas-200: #EEE4CD;
+
+  /* Neutrals */
+  --white: #FFFFFF;
+  --gray-50: #F9FAFB;
+  --gray-100: #F3F4F6;
+  --gray-200: #E5E7EB;
+  --gray-300: #D1D5DB;
+  --gray-400: #9CA3AF;
+  --gray-500: #6B7280;
+  --gray-600: #4B5563;
+  --black: #000000;
+
+  /* Status Colors */
+  --status-completed: #2F7D5A;
+  --status-pending: #C48A32;
+  --status-cancelled: #B94A48;
+  --status-in-progress: #D97706;
+}
+
+@theme inline {
+  --color-heritage-50: var(--heritage-50);
+  --color-heritage-500: var(--heritage-500);
+  --color-heritage-600: var(--heritage-600);
+  --color-golden-300: var(--golden-300);
+  --color-golden-400: var(--golden-400);
+  --color-golden-500: var(--golden-500);
+  --color-golden-600: var(--golden-600);
+  --color-canvas-100: var(--canvas-100);
+  --color-canvas-200: var(--canvas-200);
+}
+
+body {
+  background: var(--heritage-500);
+  color: var(--heritage-500);
+  font-family: "Inter", sans-serif;
+}

@@ -1,0 +1,89 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String
+  role      String    @default("employee") // "admin" or "employee"
+  createdAt DateTime  @default(now())
+
+  jobs              Job[]
+  availability      EmployeeAvailability?
+  timeOffRequests   TimeOffRequest[]
+  payments          Payment[]
+}
+
+model Customer {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  phone     String?
+  address   String?
+  createdAt DateTime  @default(now())
+
+  jobs      Job[]
+}
+
+model Job {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  address     String
+  date        DateTime
+  status      String    @default("pending") // pending, in_progress, completed
+  price       Float
+  createdAt   DateTime  @default(now())
+
+  customerId  Int
+  customer    Customer  @relation(fields: [customerId], references: [id])
+
+  assignedToId Int?
+  assignedTo   User?     @relation(fields: [assignedToId], references: [id])
+
+  payments    Payment[]
+}
+
+model EmployeeAvailability {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique
+  user      User      @relation(fields: [userId], references: [id])
+  monday    Boolean   @default(false)
+  tuesday   Boolean   @default(false)
+  wednesday Boolean   @default(false)
+  thursday  Boolean   @default(false)
+  friday    Boolean   @default(false)
+  saturday  Boolean   @default(false)
+  sunday    Boolean   @default(false)
+  updatedAt DateTime  @default(now())
+}
+
+model TimeOffRequest {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  status    String    @default("pending") // pending, approved, rejected
+  createdAt DateTime  @default(now())
+}
+
+model Payment {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id])
+  jobId         Int
+  job           Job       @relation(fields: [jobId], references: [id])
+  amount        Float
+  squarePaymentId String?
+  status        String    @default("pending") // pending, completed, refunded
+  createdAt     DateTime  @default(now())
+}
