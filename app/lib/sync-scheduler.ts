@@ -27,35 +27,35 @@ export function stopSyncScheduler() {
   }
 }
 
-async function performSync() {
+async function syncBookings() {
   try {
     const googleEnabled = getSetting('google_sheets_enabled') === 'true';
     if (!googleEnabled) {
-      console.log('Google Sheets sync disabled, skipping');
+      console.log('Google Sheets sync disabled, skipping bookings');
       return;
     }
 
     const refreshToken = getSetting('google_refresh_token');
     if (!refreshToken) {
-      console.log('Google Sheets not configured, skipping sync');
+      console.log('Google Sheets not configured, skipping bookings sync');
       return;
     }
 
     const sheetId = getSetting('google_sheet_id');
     if (!sheetId) {
-      console.log('No Google Sheet ID configured, skipping sync');
+      console.log('No Google Sheet ID configured, skipping bookings sync');
       return;
     }
 
     const accessToken = await getValidAccessToken(refreshToken);
     if (!accessToken) {
-      console.log('Failed to get Google access token, skipping sync');
+      console.log('Failed to get Google access token, skipping bookings sync');
       return;
     }
 
     const rows = await getGoogleSheetsData(sheetId, accessToken);
     if (!rows || rows.length === 0) {
-      console.log('No data found in Google Sheet, skipping sync');
+      console.log('No data found in Google Sheet, skipping bookings sync');
       return;
     }
 
@@ -74,14 +74,14 @@ async function performSync() {
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i] as string[];
 
-      const nameIdx = headerMap['name'] ?? headerMap['customer name'] ?? 0;
-      const emailIdx = headerMap['email'] ?? 1;
-      const phoneIdx = headerMap['phone'] ?? headerMap['phone number'] ?? 2;
-      const addressIdx = headerMap['address'] ?? 5;
+      const nameIdx = headerMap['name'] ?? 0;
+      const emailIdx = headerMap['email'] ?? 999;
+      const phoneIdx = headerMap['phone'] ?? 3;
+      const addressIdx = headerMap['address'] ?? 4;
       const serviceIdx = headerMap['service'] ?? 6;
       const dateIdx = headerMap['date'] ?? 1;
       const timeIdx = headerMap['time'] ?? 2;
-      const priceIdx = headerMap['charges'] ?? headerMap['price'] ?? headerMap['amount'] ?? 7;
+      const priceIdx = headerMap['charges'] ?? 7;
 
       let customerName = row[nameIdx]?.trim();
       const customerEmail = row[emailIdx]?.trim() || `customer_${i}@booking.local`;
@@ -152,7 +152,6 @@ async function performSync() {
               if (period === 'PM' && hour !== 12) hour += 12;
               if (period === 'AM' && hour === 12) hour = 0;
             } else if (hour < 12) {
-              // If no period specified and hour is 1-11, assume PM
               hour += 12;
             }
 
@@ -160,17 +159,13 @@ async function performSync() {
           }
         }
 
-        // Skip if date is invalid
         if (isNaN(parsedDate.getTime())) {
           continue;
         }
 
         const jobDate = parsedDate.toISOString();
-
-        // If job date is in the past, mark as completed
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const jobStatus = parsedDate < today ? 'completed' : 'pending';
+        const now = new Date();
+        const jobStatus = parsedDate < now ? 'completed' : 'pending';
 
         const jobExists = queryDb(
           'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ?',
@@ -190,9 +185,199 @@ async function performSync() {
     setSetting('google_last_sync', new Date().toISOString());
 
     console.log(
-      `Scheduled sync complete: ${customersAdded} customers, ${jobsAdded} jobs, $${totalRevenue.toFixed(2)} revenue (skipped ${skippedZeroAmount} canceled bookings)`
+      `Bookings sync complete: ${customersAdded} customers, ${jobsAdded} jobs, $${totalRevenue.toFixed(2)} revenue (skipped ${skippedZeroAmount} canceled)`
     );
   } catch (error) {
-    console.error('Scheduled Google Sheets sync error:', error);
+    console.error('Bookings sync error:', error);
   }
+}
+
+async function syncMetrics() {
+  try {
+    const googleEnabled = getSetting('google_sheets_enabled') === 'true';
+    if (!googleEnabled) {
+      console.log('Google Sheets sync disabled, skipping metrics');
+      return;
+    }
+
+    const refreshToken = getSetting('google_refresh_token');
+    if (!refreshToken) {
+      console.log('Google Sheets not configured, skipping metrics sync');
+      return;
+    }
+
+    const metricsSheetId = getSetting('metrics_sheet_id');
+    if (!metricsSheetId) {
+      console.log('No metrics sheet ID configured, skipping metrics sync');
+      return;
+    }
+
+    const accessToken = await getValidAccessToken(refreshToken);
+    if (!accessToken) {
+      console.log('Failed to get access token, skipping metrics sync');
+      return;
+    }
+
+    // Ensure MetricsSnapshot table exists
+    try {
+      runDb(`CREATE TABLE IF NOT EXISTS MetricsSnapshot (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        period TEXT UNIQUE NOT NULL,
+        adSpend REAL DEFAULT 0,
+        leads INTEGER DEFAULT 0,
+        peopleBooked INTEGER DEFAULT 0,
+        cashCollected REAL DEFAULT 0,
+        dollarsBooked REAL DEFAULT 0,
+        costPerLead REAL DEFAULT 0,
+        bookingRate REAL DEFAULT 0,
+        avgDealSize REAL DEFAULT 0,
+        cashCollectionPct REAL DEFAULT 0,
+        bookedRoas REAL DEFAULT 0,
+        cashRoas REAL DEFAULT 0,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+    } catch (e) {
+      console.log('MetricsSnapshot table exists');
+    }
+
+    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${metricsSheetId}`;
+    const metaResponse = await fetch(metaUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!metaResponse.ok) {
+      throw new Error('Failed to fetch spreadsheet metadata');
+    }
+
+    const metaData = (await metaResponse.json()) as any;
+    const sheets = metaData.sheets || [];
+
+    let dashboardSheet = sheets.find((s: any) => s.properties.title === 'Dashboard');
+    if (!dashboardSheet) {
+      console.log('Dashboard sheet not found, skipping metrics sync');
+      return;
+    }
+
+    const encodedRange = encodeURIComponent(`Dashboard!A1:F35`);
+    const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${metricsSheetId}/values/${encodedRange}`;
+
+    const dataResponse = await fetch(dataUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!dataResponse.ok) {
+      throw new Error('Failed to fetch Dashboard sheet');
+    }
+
+    const data = (await dataResponse.json()) as any;
+    const rows = data.values || [];
+
+    if (!rows || rows.length < 30) {
+      console.log('Dashboard sheet incomplete, skipping metrics sync');
+      return;
+    }
+
+    const parseValue = (value: string | number): number => {
+      if (!value) return 0;
+      const str = String(value).trim();
+      return parseFloat(str.replace(/[$,%x]/g, '')) || 0;
+    };
+
+    const getMetricValue = (rowIndex: number, colIndex: number) => {
+      return parseValue((rows[rowIndex] as string[])?.[colIndex] || '0');
+    };
+
+    const adSpendLast7 = getMetricValue(4, 4);
+    const leadsLast7 = getMetricValue(8, 4);
+    const bookedLast7 = getMetricValue(12, 4);
+    const cashCollectedLast7 = getMetricValue(16, 4);
+    const dollarsBookedLast7 = getMetricValue(20, 4);
+
+    const adSpendThisMonth = getMetricValue(4, 3);
+    const leadsThisMonth = getMetricValue(8, 3);
+    const bookedThisMonth = getMetricValue(12, 3);
+    const cashCollectedThisMonth = getMetricValue(16, 3);
+    const dollarsBookedThisMonth = getMetricValue(20, 3);
+
+    const adSpendAllTime = getMetricValue(4, 2);
+    const leadsAllTime = getMetricValue(8, 2);
+    const bookedAllTime = getMetricValue(12, 2);
+    const cashCollectedAllTime = getMetricValue(16, 2);
+    const dollarsBookedAllTime = getMetricValue(20, 2);
+
+    const calculateRatios = (adSpend: number, leads: number, peopleBooked: number, cashCollected: number, dollarsBooked: number) => {
+      return {
+        bookedRoas: adSpend > 0 ? dollarsBooked / adSpend : 0,
+        cashRoas: adSpend > 0 ? cashCollected / adSpend : 0,
+        bookingRate: leads > 0 ? (peopleBooked / leads) * 100 : 0,
+        costPerLead: leads > 0 ? adSpend / leads : 0,
+        avgDealSize: peopleBooked > 0 ? dollarsBooked / peopleBooked : 0,
+        cashCollectionPct: dollarsBooked > 0 ? (cashCollected / dollarsBooked) * 100 : 0
+      };
+    };
+
+    const last7Ratios = calculateRatios(adSpendLast7, leadsLast7, bookedLast7, cashCollectedLast7, dollarsBookedLast7);
+    const thisMonthRatios = calculateRatios(adSpendThisMonth, leadsThisMonth, bookedThisMonth, cashCollectedThisMonth, dollarsBookedThisMonth);
+    const allTimeRatios = calculateRatios(adSpendAllTime, leadsAllTime, bookedAllTime, cashCollectedAllTime, dollarsBookedAllTime);
+
+    const periods = [
+      {
+        name: 'allTime',
+        adSpend: adSpendAllTime, leads: leadsAllTime, booked: bookedAllTime,
+        cashCollected: cashCollectedAllTime, dollarsBooked: dollarsBookedAllTime,
+        ...allTimeRatios
+      },
+      {
+        name: 'thisMonth',
+        adSpend: adSpendThisMonth, leads: leadsThisMonth, booked: bookedThisMonth,
+        cashCollected: cashCollectedThisMonth, dollarsBooked: dollarsBookedThisMonth,
+        ...thisMonthRatios
+      },
+      {
+        name: 'last7days',
+        adSpend: adSpendLast7, leads: leadsLast7, booked: bookedLast7,
+        cashCollected: cashCollectedLast7, dollarsBooked: dollarsBookedLast7,
+        ...last7Ratios
+      }
+    ];
+
+    for (const period of periods) {
+      const existing = queryDb('SELECT id FROM MetricsSnapshot WHERE period = ?', [period.name]);
+
+      if (existing.length === 0) {
+        runDb(
+          `INSERT INTO MetricsSnapshot (
+            period, adSpend, leads, peopleBooked, cashCollected, dollarsBooked,
+            costPerLead, bookingRate, avgDealSize, cashCollectionPct, bookedRoas, cashRoas
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            period.name, period.adSpend, period.leads, period.booked, period.cashCollected, period.dollarsBooked,
+            period.costPerLead, period.bookingRate, period.avgDealSize, period.cashCollectionPct, period.bookedRoas, period.cashRoas
+          ]
+        );
+      } else {
+        runDb(
+          `UPDATE MetricsSnapshot SET
+            adSpend = ?, leads = ?, peopleBooked = ?, cashCollected = ?, dollarsBooked = ?,
+            costPerLead = ?, bookingRate = ?, avgDealSize = ?, cashCollectionPct = ?, bookedRoas = ?, cashRoas = ?, updatedAt = CURRENT_TIMESTAMP
+            WHERE period = ?`,
+          [
+            period.adSpend, period.leads, period.booked, period.cashCollected, period.dollarsBooked,
+            period.costPerLead, period.bookingRate, period.avgDealSize, period.cashCollectionPct, period.bookedRoas, period.cashRoas, period.name
+          ]
+        );
+      }
+    }
+
+    setSetting('metrics_last_sync', new Date().toISOString());
+    console.log('Metrics sync complete');
+  } catch (error) {
+    console.error('Metrics sync error:', error);
+  }
+}
+
+async function performSync() {
+  await syncBookings();
+  await syncMetrics();
 }
