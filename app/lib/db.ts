@@ -1,29 +1,33 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
-const dbPath = path.join(process.cwd(), 'prisma', 'dev.db');
-let db: Database.Database;
+let prisma: PrismaClient;
 
-function getDb() {
-  if (!db) {
-    db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
+function getPrismaClient() {
+  if (!prisma) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error('DATABASE_URL is not set');
+    }
+
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
+    prisma = new PrismaClient({ adapter });
   }
-  return db;
+  return prisma;
 }
 
 export function queryDb(sql: string, params: any[] = []) {
-  const database = getDb();
-  const stmt = database.prepare(sql);
-  return stmt.all(...params);
+  const client = getPrismaClient();
+  return client.$queryRawUnsafe(sql, ...params);
 }
 
 export function runDb(sql: string, params: any[] = []) {
-  const database = getDb();
-  const stmt = database.prepare(sql);
-  return stmt.run(...params);
+  const client = getPrismaClient();
+  return client.$executeRawUnsafe(sql, ...params);
 }
 
 export function getDb_() {
-  return getDb();
+  return getPrismaClient();
 }
