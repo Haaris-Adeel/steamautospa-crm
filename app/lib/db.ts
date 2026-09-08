@@ -1,33 +1,23 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
 
-let prisma: PrismaClient;
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-function getPrismaClient() {
-  if (!prisma) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error('DATABASE_URL is not set');
-    }
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ['query'],
+  });
 
-    const pool = new Pool({ connectionString });
-    const adapter = new PrismaPg(pool);
-    prisma = new PrismaClient({ adapter });
-  }
-  return prisma;
-}
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export function queryDb(sql: string, params: any[] = []) {
-  const client = getPrismaClient();
-  return client.$queryRawUnsafe(sql, ...params);
+  return prisma.$queryRawUnsafe(sql, ...params);
 }
 
 export function runDb(sql: string, params: any[] = []) {
-  const client = getPrismaClient();
-  return client.$executeRawUnsafe(sql, ...params);
+  return prisma.$executeRawUnsafe(sql, ...params);
 }
 
 export function getDb_() {
-  return getPrismaClient();
+  return prisma;
 }
