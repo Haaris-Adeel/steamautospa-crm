@@ -1,27 +1,37 @@
 import { runDb, queryDb } from '@/app/lib/db';
 import { hash } from 'bcryptjs';
 
-export async function POST() {
+async function seedAdmin() {
   try {
     // Hash password with bcryptjs to match login endpoint
-    const password = 'SteamAutoSpa@123';
+    const password = 'admin123';
     const passwordHash = await hash(password, 10);
 
     // Check if user already exists
-    const existing = await queryDb('SELECT id FROM User WHERE email = ?', ['haarisadeel77@gmail.com']);
+    const existing = await queryDb('SELECT id FROM User WHERE email = ?', ['admin@example.com']);
 
-    if (existing.length > 0) {
-      return Response.json({ message: 'User already exists' }, { status: 400 });
+    if ((existing as any[]).length > 0) {
+      return { success: true, message: 'User already exists' };
     }
 
     // Create user
     await runDb(
       'INSERT INTO User (email, password, role, name) VALUES (?, ?, ?, ?)',
-      ['haarisadeel77@gmail.com', passwordHash, 'admin', 'Haaris Adeel']
+      ['admin@example.com', passwordHash, 'admin', 'Admin User']
     );
 
-    return Response.json({ message: 'Admin user created successfully' });
+    return { success: true, message: 'Admin user created successfully' };
   } catch (error) {
-    return Response.json({ error: `Failed: ${String(error)}` }, { status: 500 });
+    return { success: false, error: `Failed: ${String(error)}` };
   }
+}
+
+export async function GET() {
+  const result = await seedAdmin();
+  return Response.json(result);
+}
+
+export async function POST() {
+  const result = await seedAdmin();
+  return Response.json(result);
 }
