@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -86,4 +86,24 @@ model Payment {
   squarePaymentId String?
   status        String    @default("pending") // pending, completed, refunded
   createdAt     DateTime  @default(now())
+}
+
+model MetricsSnapshot {
+  id                Int       @id @default(autoincrement())
+  period            String    // "last7days", "thisMonth", "allTime"
+  adSpend           Float     @default(0)
+  leads             Int       @default(0)
+  peopleBooked      Int       @default(0)
+  cashCollected     Float     @default(0)
+  dollarsBooked     Float     @default(0)
+  costPerLead       Float     @default(0)
+  bookingRate       Float     @default(0)
+  avgDealSize       Float     @default(0)
+  cashCollectionPct Float     @default(0)
+  bookedRoas        Float     @default(0)
+  cashRoas          Float     @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([period])
 }
