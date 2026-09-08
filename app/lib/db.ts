@@ -1,23 +1,24 @@
 import { PrismaClient } from '@prisma/client';
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+let prismaClient: PrismaClient;
 
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ['query'],
-  });
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+function getPrisma() {
+  if (!prismaClient) {
+    prismaClient = new PrismaClient();
+  }
+  return prismaClient;
+}
 
 export function queryDb(sql: string, params: any[] = []) {
-  return prisma.$queryRawUnsafe(sql, ...params);
+  const client = getPrisma();
+  return client.$queryRawUnsafe(sql, ...params);
 }
 
 export function runDb(sql: string, params: any[] = []) {
-  return prisma.$executeRawUnsafe(sql, ...params);
+  const client = getPrisma();
+  return client.$executeRawUnsafe(sql, ...params);
 }
 
 export function getDb_() {
-  return prisma;
+  return getPrisma();
 }
