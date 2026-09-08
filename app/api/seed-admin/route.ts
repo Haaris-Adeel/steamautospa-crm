@@ -1,22 +1,22 @@
 import { runDb, queryDb } from '@/app/lib/db';
-import crypto from 'crypto';
+import { hash } from 'bcryptjs';
 
 export async function POST() {
   try {
-    // Hash password with sha256 for now (simple approach)
+    // Hash password with bcryptjs to match login endpoint
     const password = 'SteamAutoSpa@123';
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+    const passwordHash = await hash(password, 10);
 
     // Check if user already exists
-    const existing = queryDb('SELECT id FROM User WHERE email = ?', ['haarisadeel77@gmail.com']);
+    const existing = await queryDb('SELECT id FROM User WHERE email = ?', ['haarisadeel77@gmail.com']);
 
     if (existing.length > 0) {
       return Response.json({ message: 'User already exists' }, { status: 400 });
     }
 
     // Create user
-    runDb(
-      'INSERT INTO User (email, passwordHash, role, name) VALUES (?, ?, ?, ?)',
+    await runDb(
+      'INSERT INTO User (email, password, role, name) VALUES (?, ?, ?, ?)',
       ['haarisadeel77@gmail.com', passwordHash, 'admin', 'Haaris Adeel']
     );
 

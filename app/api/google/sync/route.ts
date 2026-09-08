@@ -6,17 +6,17 @@ export async function POST(req: Request) {
   try {
     await requireAdmin();
 
-    const googleEnabled = getSetting('google_sheets_enabled') === 'true';
+    const googleEnabled = await getSetting('google_sheets_enabled') === 'true';
     if (!googleEnabled) {
       return Response.json({ error: 'Google Sheets not connected' }, { status: 400 });
     }
 
-    const refreshToken = getSetting('google_refresh_token');
+    const refreshToken = await getSetting('google_refresh_token');
     if (!refreshToken) {
       return Response.json({ error: 'Google authentication expired' }, { status: 401 });
     }
 
-    const sheetId = getSetting('google_sheet_id');
+    const sheetId = await getSetting('google_sheet_id');
     if (!sheetId) {
       return Response.json({ error: 'No Google Sheet ID configured' }, { status: 400 });
     }
@@ -45,27 +45,37 @@ export async function POST(req: Request) {
     let jobsAdded = 0;
     let totalRevenue = 0;
     let skippedZeroAmount = 0;
+    let deletedJobs = 0;
+
+    // Get all current emails from sheet to track what should exist
+    const sheetEmails = new Set<string>();
 
     // Process data rows (skip header)
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i] as string[];
 
-      // Extract customer info
-      const nameIdx = headerMap['name'] ?? headerMap['customer name'] ?? 0;
-      const emailIdx = headerMap['email'] ?? 1;
-      const phoneIdx = headerMap['phone'] ?? headerMap['phone number'] ?? 2;
-      const addressIdx = headerMap['address'] ?? 5;
-      const serviceIdx = headerMap['service'] ?? 6;
-      const dateIdx = headerMap['date'] ?? 1;
-      const timeIdx = headerMap['time'] ?? 2;
-      const priceIdx = headerMap['charges'] ?? headerMap['price'] ?? headerMap['amount'] ?? 7;
+      // DEBUG: Log rows 116-121 to see what's being read
+      if (i >= 116 && i <= 121) {
+        console.log(`Row ${i}: cols[0]="${row[0]}" cols[1]="${row[1]}" cols[7]="${row[7]}"`);
+      }
+
+      // Extract customer info - Phase II sheet structure
+      // A: Name, B: Date, C: Time, D: Phone, E: Address, F: Car Type, G: Service, H: Charges, I: Tips
+      const nameIdx = 0;      // A: Name
+      const dateIdx = 1;      // B: Date
+      const timeIdx = 2;      // C: Time
+      const phoneIdx = 3;     // D: Phone
+      const addressIdx = 4;   // E: Address
+      const serviceIdx = 6;   // G: Service
+      const priceIdx = 7;     // H: Charges
+      const emailIdx = 999;   // No email column
 
       let customerName = row[nameIdx]?.trim();
       const customerEmail = row[emailIdx]?.trim() || `customer_${i}@booking.local`;
       const customerPhone = row[phoneIdx]?.trim() || '';
       const customerAddress = row[addressIdx]?.trim() || '';
 
-      // Extract job price first to skip zero amounts (remove $ signs and commas)
+      // Extract job price (remove $ signs and commas)
       const priceStr = row[priceIdx]?.trim() || '0';
       const cleanPrice = priceStr.replace(/[$,]/g, '');
       const jobPrice = parseFloat(cleanPrice) || 0;
@@ -76,22 +86,31 @@ export async function POST(req: Request) {
         continue;
       }
 
+      // Track this email as it exists in the sheet
+      sheetEmails.add(customerEmail);
+
       // Generate name if missing
       if (!customerName) {
         customerName = `Customer #${i}`;
       }
 
       // Check if customer exists
-      const existing = queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
+      const existing = await queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
       let customerId = (existing[0] as any)?.id;
 
       if (!customerId) {
-        const result = runDb(
+        const result = await runDb(
           'INSERT INTO Customer (name, email, phone, address) VALUES (?, ?, ?, ?)',
           [customerName, customerEmail, customerPhone, customerAddress]
         );
         customerId = Number(result.lastInsertRowid);
         customersAdded++;
+      } else {
+        // Update customer info if it exists (name, phone, address might have changed)
+        await runDb(
+          'UPDATE Customer SET name = ?, phone = ?, address = ? WHERE id = ?',
+          [customerName, customerPhone, customerAddress, customerId]
+        );
       }
 
       // Extract job info
@@ -153,18 +172,17 @@ export async function POST(req: Request) {
 
         const jobDate = parsedDate.toISOString();
 
-        // If job date is in the past, mark as completed
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const jobStatus = parsedDate < today ? 'completed' : 'pending';
+        // If job date/time is in the past (now), mark as completed
+        const now = new Date();
+        const jobStatus = parsedDate < now ? 'completed' : 'pending';
 
-        const jobExists = queryDb(
+        const jobExists = await queryDb(
           'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ?',
           [customerId, jobTitle, jobDate]
         );
 
         if (jobExists.length === 0) {
-          runDb(
+          await runDb(
             'INSERT INTO Job (title, address, date, price, status, customerId) VALUES (?, ?, ?, ?, ?, ?)',
             [jobTitle, jobAddress, jobDate, jobPrice, jobStatus, customerId]
           );
@@ -173,15 +191,30 @@ export async function POST(req: Request) {
       }
     }
 
-    setSetting('google_last_sync', new Date().toISOString());
+    // Delete jobs for customers that are no longer in the sheet
+    const allCustomersWithJobs = await queryDb('SELECT DISTINCT customerId FROM Job');
+    for (const row of allCustomersWithJobs) {
+      const customerId = (row as any).customerId;
+      const customer = await queryDb('SELECT email FROM Customer WHERE id = ?', [customerId]);
+      if (customer.length > 0) {
+        const customerEmail = (customer[0] as any).email;
+        if (!sheetEmails.has(customerEmail)) {
+          const deleted = await runDb('DELETE FROM Job WHERE customerId = ?', [customerId]);
+          deletedJobs += deleted.changes || 0;
+        }
+      }
+    }
+
+    await setSetting('google_last_sync', new Date().toISOString());
 
     return Response.json({
       success: true,
-      message: `Synced from Google Sheets: ${customersAdded} customers, ${jobsAdded} jobs, $${totalRevenue.toFixed(2)} revenue (skipped ${skippedZeroAmount} canceled bookings)`,
+      message: `Synced from Google Sheets: ${customersAdded} customers, ${jobsAdded} jobs, $${totalRevenue.toFixed(2)} revenue. Removed ${deletedJobs} canceled jobs (skipped ${skippedZeroAmount} zero-price rows).`,
       customersAdded,
       jobsAdded,
       totalRevenue: totalRevenue.toFixed(2),
-      skippedZeroAmount
+      skippedZeroAmount,
+      deletedJobs
     });
   } catch (error) {
     console.error('Google Sheets sync error:', error);

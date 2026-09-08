@@ -29,19 +29,19 @@ export function stopSyncScheduler() {
 
 async function syncBookings() {
   try {
-    const googleEnabled = getSetting('google_sheets_enabled') === 'true';
+    const googleEnabled = await getSetting('google_sheets_enabled') === 'true';
     if (!googleEnabled) {
       console.log('Google Sheets sync disabled, skipping bookings');
       return;
     }
 
-    const refreshToken = getSetting('google_refresh_token');
+    const refreshToken = await getSetting('google_refresh_token');
     if (!refreshToken) {
       console.log('Google Sheets not configured, skipping bookings sync');
       return;
     }
 
-    const sheetId = getSetting('google_sheet_id');
+    const sheetId = await getSetting('google_sheet_id');
     if (!sheetId) {
       console.log('No Google Sheet ID configured, skipping bookings sync');
       return;
@@ -101,11 +101,11 @@ async function syncBookings() {
         customerName = `Customer #${i}`;
       }
 
-      const existing = queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
+      const existing = await queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
       let customerId = (existing[0] as any)?.id;
 
       if (!customerId) {
-        const result = runDb(
+        const result = await runDb(
           'INSERT INTO Customer (name, email, phone, address) VALUES (?, ?, ?, ?)',
           [customerName, customerEmail, customerPhone, customerAddress]
         );
@@ -167,13 +167,13 @@ async function syncBookings() {
         const now = new Date();
         const jobStatus = parsedDate < now ? 'completed' : 'pending';
 
-        const jobExists = queryDb(
+        const jobExists = await queryDb(
           'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ?',
           [customerId, jobTitle, jobDate]
         );
 
         if (jobExists.length === 0) {
-          runDb(
+          await runDb(
             'INSERT INTO Job (title, address, date, price, status, customerId) VALUES (?, ?, ?, ?, ?, ?)',
             [jobTitle, customerAddress, jobDate, jobPrice, jobStatus, customerId]
           );
@@ -182,7 +182,7 @@ async function syncBookings() {
       }
     }
 
-    setSetting('google_last_sync', new Date().toISOString());
+    await setSetting('google_last_sync', new Date().toISOString());
 
     console.log(
       `Bookings sync complete: ${customersAdded} customers, ${jobsAdded} jobs, $${totalRevenue.toFixed(2)} revenue (skipped ${skippedZeroAmount} canceled)`
@@ -194,19 +194,19 @@ async function syncBookings() {
 
 async function syncMetrics() {
   try {
-    const googleEnabled = getSetting('google_sheets_enabled') === 'true';
+    const googleEnabled = await getSetting('google_sheets_enabled') === 'true';
     if (!googleEnabled) {
       console.log('Google Sheets sync disabled, skipping metrics');
       return;
     }
 
-    const refreshToken = getSetting('google_refresh_token');
+    const refreshToken = await getSetting('google_refresh_token');
     if (!refreshToken) {
       console.log('Google Sheets not configured, skipping metrics sync');
       return;
     }
 
-    const metricsSheetId = getSetting('metrics_sheet_id');
+    const metricsSheetId = await getSetting('metrics_sheet_id');
     if (!metricsSheetId) {
       console.log('No metrics sheet ID configured, skipping metrics sync');
       return;
@@ -220,7 +220,7 @@ async function syncMetrics() {
 
     // Ensure MetricsSnapshot table exists
     try {
-      runDb(`CREATE TABLE IF NOT EXISTS MetricsSnapshot (
+      await runDb(`CREATE TABLE IF NOT EXISTS MetricsSnapshot (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         period TEXT UNIQUE NOT NULL,
         adSpend REAL DEFAULT 0,
@@ -343,10 +343,10 @@ async function syncMetrics() {
     ];
 
     for (const period of periods) {
-      const existing = queryDb('SELECT id FROM MetricsSnapshot WHERE period = ?', [period.name]);
+      const existing = await queryDb('SELECT id FROM MetricsSnapshot WHERE period = ?', [period.name]);
 
       if (existing.length === 0) {
-        runDb(
+        await runDb(
           `INSERT INTO MetricsSnapshot (
             period, adSpend, leads, peopleBooked, cashCollected, dollarsBooked,
             costPerLead, bookingRate, avgDealSize, cashCollectionPct, bookedRoas, cashRoas
@@ -357,7 +357,7 @@ async function syncMetrics() {
           ]
         );
       } else {
-        runDb(
+        await runDb(
           `UPDATE MetricsSnapshot SET
             adSpend = ?, leads = ?, peopleBooked = ?, cashCollected = ?, dollarsBooked = ?,
             costPerLead = ?, bookingRate = ?, avgDealSize = ?, cashCollectionPct = ?, bookedRoas = ?, cashRoas = ?, updatedAt = CURRENT_TIMESTAMP
@@ -370,7 +370,7 @@ async function syncMetrics() {
       }
     }
 
-    setSetting('metrics_last_sync', new Date().toISOString());
+    await setSetting('metrics_last_sync', new Date().toISOString());
     console.log('Metrics sync complete');
   } catch (error) {
     console.error('Metrics sync error:', error);

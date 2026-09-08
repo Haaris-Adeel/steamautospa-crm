@@ -33,12 +33,12 @@ export async function POST(req: Request) {
       if (!customerName) continue;
 
       // Check if customer exists
-      const existing = queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
+      const existing = await queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
       let customerId = (existing[0] as any)?.id;
 
       if (!customerId) {
         // Create new customer
-        const result = runDb(
+        const result = await runDb(
           'INSERT INTO Customer (name, email, phone, address) VALUES (?, ?, ?, ?)',
           [customerName, customerEmail, customerPhone, customerAddress]
         );
@@ -54,13 +54,13 @@ export async function POST(req: Request) {
 
       if (jobDate) {
         // Check if job already exists
-        const jobExists = queryDb(
+        const jobExists = await queryDb(
           'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ?',
           [customerId, jobTitle, new Date(jobDate).toISOString()]
         );
 
         if (jobExists.length === 0) {
-          runDb(
+          await runDb(
             'INSERT INTO Job (title, address, date, price, status, customerId) VALUES (?, ?, ?, ?, ?, ?)',
             [jobTitle, jobAddress, new Date(jobDate).toISOString(), jobPrice, 'pending', customerId]
           );

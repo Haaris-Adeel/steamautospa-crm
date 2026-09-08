@@ -10,8 +10,8 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Missing credentials' }, { status: 400 });
     }
 
-    const users = queryDb('SELECT * FROM User WHERE email = ?', [email]);
-    const user = users[0] as any;
+    const users = await queryDb('SELECT * FROM User WHERE email = ?', [email]);
+    const user = (users as any[])[0] as any;
 
     if (!user) {
       return Response.json({ error: 'Invalid credentials' }, { status: 401 });

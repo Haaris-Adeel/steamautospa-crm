@@ -5,7 +5,7 @@ export async function GET() {
   try {
     await requireAdmin();
 
-    const jobs = queryDb(`
+    const jobs = await queryDb(`
       SELECT Job.*, Customer.name as customerName, Customer.email as customerEmail, Customer.phone as customerPhone
       FROM Job
       LEFT JOIN Customer ON Job.customerId = Customer.id

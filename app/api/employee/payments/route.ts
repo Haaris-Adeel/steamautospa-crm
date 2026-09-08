@@ -9,7 +9,7 @@ export async function GET() {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const payments = queryDb(
+    const payments = await queryDb(
       `SELECT
         Payment.id,
         Payment.amount,
@@ -26,7 +26,7 @@ export async function GET() {
       [user.id]
     );
 
-    const stats = queryDb(
+    const stats = await queryDb(
       `SELECT
         COUNT(*) as totalJobs,
         SUM(CASE WHEN Payment.status = 'completed' THEN Payment.amount ELSE 0 END) as totalEarned,

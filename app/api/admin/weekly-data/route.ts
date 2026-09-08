@@ -19,7 +19,7 @@ export async function GET() {
     const endIso = endOfWeek.toISOString();
 
     // Get jobs for this week
-    const jobs = queryDb(
+    const jobs = await queryDb(
       `SELECT * FROM Job
        WHERE date >= ? AND date <= ?
        ORDER BY date ASC`,
@@ -35,7 +35,7 @@ export async function GET() {
 
     const customers = [];
     for (const customerId of Array.from(customerIds)) {
-      const result = queryDb('SELECT * FROM Customer WHERE id = ?', [customerId]);
+      const result = await queryDb('SELECT * FROM Customer WHERE id = ?', [customerId]);
       if (result.length > 0) {
         customers.push(result[0]);
       }

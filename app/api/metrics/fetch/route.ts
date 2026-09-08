@@ -1,82 +1,47 @@
-import { getValidAccessToken, getSetting, getGoogleSheetsData } from '@/app/lib/googlesheets';
+import { requireAdmin } from '@/app/lib/auth';
+import { queryDb } from '@/app/lib/db';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const refreshToken = getSetting('google_refresh_token');
-    if (!refreshToken) {
-      return Response.json(getEmptyMetrics());
+    await requireAdmin();
+
+    const { searchParams } = new URL(req.url);
+    const period = searchParams.get('period') || 'last7days';
+
+    const metrics = await queryDb('SELECT * FROM MetricsSnapshot WHERE period = ?', [period]);
+
+    if (metrics.length === 0) {
+      return Response.json({
+        adSpend: 0,
+        leads: 0,
+        peopleBooked: 0,
+        cashCollected: 0,
+        dollarsBooked: 0,
+        costPerLead: 0,
+        bookingRate: 0,
+        avgDealSize: 0,
+        cashCollectionPct: 0,
+        bookedRoas: 0,
+        cashRoas: 0
+      });
     }
 
-    const accessToken = await getValidAccessToken(refreshToken);
-    if (!accessToken) {
-      return Response.json(getEmptyMetrics());
-    }
-
-    // Fetch metrics sheet
-    const sheetId = '1RPMwnPhAj9ixpYPsr05Z2DuU3z2NpI1a';
-    const rows = await getGoogleSheetsData(sheetId, accessToken, 'Daily Entry');
-
-    if (!rows || rows.length < 5) {
-      return Response.json(getEmptyMetrics());
-    }
-
-    // Get last non-empty data row (skip header rows at top)
-    let todayData: string[] | null = null;
-    for (let i = rows.length - 1; i >= 4; i--) {
-      const row = rows[i] as string[];
-      if (row[0] && String(row[0]).trim() !== '') {
-        todayData = row;
-        break;
-      }
-    }
-
-    if (!todayData) {
-      return Response.json(getEmptyMetrics());
-    }
-
-    // Parse values - remove $, commas, % signs
-    const parseNum = (val: any): number => {
-      if (!val) return 0;
-      const str = String(val).replace(/[$,%]/g, '').trim();
-      const num = parseFloat(str);
-      return isNaN(num) ? 0 : num;
-    };
-
-    const metricsData = {
-      date: String(todayData[0] || ''),
-      adSpend: parseNum(todayData[1]),           // B: Ad Spend ($)
-      leads: Math.round(parseNum(todayData[2])), // C: Leads
-      peopleBooked: Math.round(parseNum(todayData[3])), // D: People Booked (#)
-      cashCollected: parseNum(todayData[4]),    // E: Cash Collected ($)
-      dollarsBooked: parseNum(todayData[5]),    // F: Dollars Booked ($)
-      costPerLead: parseNum(todayData[6]),      // G: Cost Per Lead
-      bookingRate: parseNum(todayData[7]),      // H: Booking Rate
-      avgDealSize: parseNum(todayData[8]),      // I: Avg Deal Size ($)
-      cashCollectionPct: parseNum(todayData[9]), // J: Cash Collection %
-      bookedRoas: parseNum(todayData[10]),      // K: Booked ROAS
-      cashRoas: parseNum(todayData[11]),        // L: Cash ROAS
-    };
-
-    return Response.json(metricsData);
+    const data = metrics[0] as any;
+    return Response.json({
+      adSpend: data.adSpend,
+      leads: data.leads,
+      peopleBooked: data.peopleBooked,
+      cashCollected: data.cashCollected,
+      dollarsBooked: data.dollarsBooked,
+      costPerLead: data.costPerLead,
+      bookingRate: data.bookingRate,
+      avgDealSize: data.avgDealSize,
+      cashCollectionPct: data.cashCollectionPct,
+      bookedRoas: data.bookedRoas,
+      cashRoas: data.cashRoas
+    });
   } catch (error) {
     console.error('Metrics fetch error:', error);
-    return Response.json(getEmptyMetrics());
+    return Response.json({ error: String(error) }, { status: 500 });
   }
-}
-
-function getEmptyMetrics() {
-  return {
-    date: '',
-    adSpend: 0,
-    leads: 0,
-    peopleBooked: 0,
-    cashCollected: 0,
-    dollarsBooked: 0,
-    costPerLead: 0,
-    bookingRate: 0,
-    avgDealSize: 0,
-    cashCollectionPct: 0,
-    bookedRoas: 0,
-    cashRoas: 0,
-  };
 }

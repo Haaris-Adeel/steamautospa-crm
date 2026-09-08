@@ -5,10 +5,10 @@ export async function GET() {
   try {
     await requireAdmin();
 
-    const customers = (queryDb('SELECT COUNT(*) as count FROM Customer') as any[])[0];
-    const jobs = (queryDb('SELECT COUNT(*) as count FROM Job') as any[])[0];
-    const employees = (queryDb("SELECT COUNT(*) as count FROM User WHERE role = 'employee'") as any[])[0];
-    const payments = queryDb("SELECT amount FROM Payment WHERE status = 'completed'") as any[];
+    const customers = (await queryDb('SELECT COUNT(*) as count FROM Customer') as any[])[0];
+    const jobs = (await queryDb('SELECT COUNT(*) as count FROM Job') as any[])[0];
+    const employees = (await queryDb("SELECT COUNT(*) as count FROM User WHERE role = 'employee'") as any[])[0];
+    const payments = await queryDb("SELECT amount FROM Payment WHERE status = 'completed'") as any[];
 
     const revenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
 

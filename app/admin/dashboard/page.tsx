@@ -7,6 +7,7 @@ import { Navigation } from '@/app/components/Navigation';
 interface DashboardData {
   revenueThisWeek: number;
   revenueThisMonth: number;
+  percentChange: number;
   bookingsThisWeek: number;
   jobsCompleted: number;
   expensesThisMonth: number;
@@ -39,6 +40,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [metricsPeriod, setMetricsPeriod] = useState('last7days');
   const router = useRouter();
 
   useEffect(() => {
@@ -65,9 +67,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!loading) {
       fetchDashboardData();
-      fetchMetricsData();
+      fetchMetricsData(metricsPeriod);
     }
-  }, [loading]);
+  }, [loading, metricsPeriod]);
 
   const fetchDashboardData = async () => {
     try {
@@ -79,9 +81,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchMetricsData = async () => {
+  const fetchMetricsData = async (period: string) => {
     try {
-      const res = await fetch('/api/metrics/fetch');
+      const res = await fetch(`/api/metrics/fetch?period=${period}`);
       const data = await res.json();
       setMetrics(data);
     } catch (error) {
@@ -171,7 +173,9 @@ export default function AdminDashboard() {
               <div className="text-6xl font-bold mt-4" style={{ color: '#FFFFFF' }}>
                 ${data.revenueThisWeek.toFixed(0)}
               </div>
-              <p className="text-sm mt-2" style={{ color: '#10B981' }}>↑ 12% from last week</p>
+              <p className="text-sm mt-2" style={{ color: data.percentChange >= 0 ? '#10B981' : '#EF4444' }}>
+                {data.percentChange >= 0 ? '↑' : '↓'} {Math.abs(data.percentChange)}% from last week
+              </p>
             </div>
 
             {/* KPI Cards */}
@@ -202,7 +206,10 @@ export default function AdminDashboard() {
                 <div className="space-y-1">
                   {data.todaysJobs.slice(0, 3).map((job) => {
                     const jobDate = new Date(job.date);
-                    const jobTime = jobDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    const isValidDate = !isNaN(jobDate.getTime());
+                    const jobTime = isValidDate
+                      ? jobDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                      : 'TBD';
                     return (
                       <div key={job.id} style={{ backgroundColor: '#1E293B', borderRadius: '4px', padding: '8px 12px', fontSize: '13px' }}>
                         <div style={{ color: '#FFFFFF' }}>{jobTime} — {job.customerName}</div>
@@ -233,32 +240,54 @@ export default function AdminDashboard() {
 
             {/* Marketing Metrics */}
             <div>
-              <p className="text-xs uppercase tracking-wider mb-4" style={{ color: '#94A3B8' }}>Marketing Metrics</p>
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-xs uppercase tracking-wider" style={{ color: '#94A3B8' }}>Marketing Metrics</p>
+                <div className="flex gap-2">
+                  {(['last7days', 'thisMonth', 'allTime'] as const).map((period) => (
+                    <button
+                      key={period}
+                      onClick={() => setMetricsPeriod(period)}
+                      style={{
+                        backgroundColor: metricsPeriod === period ? '#3B82F6' : '#1E293B',
+                        color: metricsPeriod === period ? '#FFFFFF' : '#94A3B8',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {period === 'last7days' ? 'Last 7 Days' : period === 'thisMonth' ? 'This Month' : 'All Time'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-5 gap-3">
                 <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
                   <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Ad Spend</p>
-                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>$0</p>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>This Month</p>
+                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>${metrics ? metrics.adSpend : '0'}</p>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Last 7 Days</p>
                 </div>
                 <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
                   <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Leads</p>
-                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>0</p>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>This Month</p>
+                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metrics ? metrics.leads : '0'}</p>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Last 7 Days</p>
                 </div>
                 <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
                   <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Booked</p>
-                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>0</p>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>This Month</p>
+                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metrics ? metrics.peopleBooked : '0'}</p>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>People Booked</p>
                 </div>
                 <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
-                  <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Cost/Lead</p>
-                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>—</p>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>n/a</p>
+                  <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>ROAS</p>
+                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metrics && metrics.bookedRoas ? metrics.bookedRoas.toFixed(2) + 'x' : '—'}</p>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Return on Ad Spend</p>
                 </div>
                 <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
                   <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Booking Rate</p>
-                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>—</p>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>n/a</p>
+                  <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metrics && metrics.bookingRate ? metrics.bookingRate.toFixed(1) + '%' : '—'}</p>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Conversion Rate</p>
                 </div>
               </div>
             </div>

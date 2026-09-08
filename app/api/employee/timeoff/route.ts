@@ -9,7 +9,7 @@ export async function GET() {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const requests = queryDb(
+    const requests = await queryDb(
       `SELECT * FROM TimeOffRequest WHERE userId = ? ORDER BY startDate DESC`,
       [user.id]
     );
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Start and end dates are required' }, { status: 400 });
     }
 
-    queryDb(
+    await queryDb(
       `INSERT INTO TimeOffRequest (userId, startDate, endDate, reason, status)
        VALUES (?, ?, ?, ?, 'pending')`,
       [user.id, startDate, endDate, reason || null]

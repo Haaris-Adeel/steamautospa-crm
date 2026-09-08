@@ -9,7 +9,7 @@ export async function GET() {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const availability = queryDb(
+    const availability = await queryDb(
       `SELECT * FROM EmployeeAvailability WHERE userId = ?`,
       [user.id]
     );
@@ -30,13 +30,13 @@ export async function POST(request: Request) {
 
     const availability = await request.json();
 
-    const existing = queryDb(
+    const existing = await queryDb(
       `SELECT id FROM EmployeeAvailability WHERE userId = ?`,
       [user.id]
     );
 
     if (existing && (existing as any)[0]) {
-      queryDb(
+      await queryDb(
         `UPDATE EmployeeAvailability
          SET monday = ?, tuesday = ?, wednesday = ?, thursday = ?, friday = ?, saturday = ?, sunday = ?, updatedAt = datetime('now')
          WHERE userId = ?`,
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         ]
       );
     } else {
-      queryDb(
+      await queryDb(
         `INSERT INTO EmployeeAvailability (userId, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [

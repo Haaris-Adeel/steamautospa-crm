@@ -9,7 +9,7 @@ export async function GET() {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const jobs = queryDb(
+    const jobs = await queryDb(
       `SELECT
         Job.id,
         Job.title,

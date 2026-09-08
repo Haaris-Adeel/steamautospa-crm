@@ -2,7 +2,7 @@ import { queryDb } from '@/app/lib/db';
 
 export async function GET() {
   try {
-    const settings = queryDb('SELECT key, value FROM Settings WHERE key LIKE ?', ['google%']);
+    const settings = await queryDb('SELECT key, value FROM Settings WHERE key LIKE ?', ['google%']);
 
     return Response.json({
       settings: settings || [],

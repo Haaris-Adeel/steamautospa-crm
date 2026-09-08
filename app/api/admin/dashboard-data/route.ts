@@ -7,22 +7,35 @@ export async function GET() {
 
     const today = new Date();
     const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const last14Days = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
     const last30Days = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     const startOfDay = new Date(today).toISOString().split('T')[0];
 
     const last7DaysStr = last7Days.toISOString().split('T')[0];
+    const last14DaysStr = last14Days.toISOString().split('T')[0];
     const last30DaysStr = last30Days.toISOString().split('T')[0];
 
     // Revenue Last 7 Days (completed jobs only)
-    const revenueThisWeekResult = queryDb(
+    const revenueThisWeekResult = await queryDb(
       `SELECT COALESCE(SUM(price), 0) as total FROM Job
        WHERE DATE(date) >= DATE(?) AND status = 'completed'`,
       [last7DaysStr]
     );
     const revenueThisWeek = revenueThisWeekResult.length > 0 ? revenueThisWeekResult[0].total : 0;
 
+    // Revenue Previous 7 Days (days 7-14 ago)
+    const revenueLastWeekResult = await queryDb(
+      `SELECT COALESCE(SUM(price), 0) as total FROM Job
+       WHERE DATE(date) >= DATE(?) AND DATE(date) < DATE(?) AND status = 'completed'`,
+      [last14DaysStr, last7DaysStr]
+    );
+    const revenueLastWeek = revenueLastWeekResult.length > 0 ? revenueLastWeekResult[0].total : 0;
+
+    // Calculate percentage change
+    const percentChange = revenueLastWeek > 0 ? Math.round(((revenueThisWeek - revenueLastWeek) / revenueLastWeek) * 100) : 0;
+
     // Revenue Last 30 Days (completed jobs only)
-    const revenueThisMonthResult = queryDb(
+    const revenueThisMonthResult = await queryDb(
       `SELECT COALESCE(SUM(price), 0) as total FROM Job
        WHERE DATE(date) >= DATE(?) AND status = 'completed'`,
       [last30DaysStr]
@@ -30,7 +43,7 @@ export async function GET() {
     const revenueThisMonth = revenueThisMonthResult.length > 0 ? revenueThisMonthResult[0].total : 0;
 
     // Bookings Last 7 Days
-    const bookingsThisWeekResult = queryDb(
+    const bookingsThisWeekResult = await queryDb(
       `SELECT COUNT(*) as count FROM Job
        WHERE DATE(date) >= DATE(?)`,
       [last7DaysStr]
@@ -38,13 +51,13 @@ export async function GET() {
     const bookingsThisWeek = bookingsThisWeekResult.length > 0 ? bookingsThisWeekResult[0].count : 0;
 
     // Jobs Completed
-    const jobsCompletedResult = queryDb(
+    const jobsCompletedResult = await queryDb(
       `SELECT COUNT(*) as count FROM Job WHERE status = 'completed'`
     );
     const jobsCompleted = jobsCompletedResult.length > 0 ? jobsCompletedResult[0].count : 0;
 
     // Expenses Last 30 Days
-    const expensesThisMonthResult = queryDb(
+    const expensesThisMonthResult = await queryDb(
       `SELECT COALESCE(SUM(amount), 0) as total FROM Expense
        WHERE date >= ?`,
       [last30Days.toISOString().split('T')[0]]
@@ -54,29 +67,29 @@ export async function GET() {
     // Estimated Profit
     const estimatedProfit = revenueThisMonth - expensesThisMonth;
 
-    // Today's Jobs
-    const todaysJobsResult = queryDb(
+    // Today's Jobs (only pending - upcoming bookings)
+    const todaysJobsResult = await queryDb(
       `SELECT j.id, j.title, j.address, j.status, j.price, c.name as customerName
        FROM Job j
        LEFT JOIN Customer c ON j.customerId = c.id
-       WHERE DATE(j.date) = DATE(?)
+       WHERE DATE(j.date) = DATE(?) AND j.status = 'pending'
        ORDER BY j.date ASC`,
       [startOfDay]
     );
 
     // Upcoming Bookings (next 14 days, excluding today)
-    const upcomingBookingsResult = queryDb(
+    const upcomingBookingsResult = await queryDb(
       `SELECT j.id, j.title, j.date, j.status, j.price, c.name as customerName
        FROM Job j
        LEFT JOIN Customer c ON j.customerId = c.id
-       WHERE j.date > ? AND j.date <= ?
+       WHERE DATE(j.date) > DATE(?) AND DATE(j.date) <= DATE(?)
        ORDER BY j.date ASC
        LIMIT 10`,
       [startOfDay, new Date(today.getTime() + 14*24*60*60*1000).toISOString()]
     );
 
     // Top Customers (by spending)
-    const topCustomersResult = queryDb(
+    const topCustomersResult = await queryDb(
       `SELECT c.id, c.name, COALESCE(SUM(j.price), 0) as total
        FROM Customer c
        LEFT JOIN Job j ON c.id = j.customerId
@@ -86,7 +99,7 @@ export async function GET() {
     );
 
     // Daily revenue for this month
-    const dailyRevenueResult = queryDb(
+    const dailyRevenueResult = await queryDb(
       `SELECT DATE(date) as day, COALESCE(SUM(price), 0) as revenue
        FROM Job
        WHERE DATE(date) >= DATE(?)
@@ -101,7 +114,7 @@ export async function GET() {
     });
 
     // Revenue by Service (using job titles as service names)
-    const serviceRevenueResult = queryDb(
+    const serviceRevenueResult = await queryDb(
       `SELECT j.title as serviceName, COALESCE(SUM(j.price), 0) as revenue
        FROM Job j
        GROUP BY j.title
@@ -116,6 +129,7 @@ export async function GET() {
     return Response.json({
       revenueThisWeek: Number(revenueThisWeek) || 0,
       revenueThisMonth: Number(revenueThisMonth) || 0,
+      percentChange,
       bookingsThisWeek: Number(bookingsThisWeek) || 0,
       jobsCompleted: Number(jobsCompleted) || 0,
       expensesThisMonth: Number(expensesThisMonth) || 0,

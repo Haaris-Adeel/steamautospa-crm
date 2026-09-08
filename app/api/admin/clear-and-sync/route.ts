@@ -7,20 +7,20 @@ export async function POST() {
     await requireAdmin();
 
     // Clear all jobs
-    runDb('DELETE FROM Job');
+    await runDb('DELETE FROM Job');
 
     // Now sync from Google Sheets
-    const googleEnabled = getSetting('google_sheets_enabled') === 'true';
+    const googleEnabled = await getSetting('google_sheets_enabled') === 'true';
     if (!googleEnabled) {
       return Response.json({ error: 'Google Sheets not connected' }, { status: 400 });
     }
 
-    const refreshToken = getSetting('google_refresh_token');
+    const refreshToken = await getSetting('google_refresh_token');
     if (!refreshToken) {
       return Response.json({ error: 'Google authentication expired' }, { status: 401 });
     }
 
-    const sheetId = getSetting('google_sheet_id');
+    const sheetId = await getSetting('google_sheet_id');
     if (!sheetId) {
       return Response.json({ error: 'No Google Sheet ID configured' }, { status: 400 });
     }
@@ -52,14 +52,14 @@ export async function POST() {
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i] as string[];
 
-      const nameIdx = headerMap['name'] ?? headerMap['customer name'] ?? 0;
-      const emailIdx = headerMap['email'] ?? 1;
-      const phoneIdx = headerMap['phone'] ?? headerMap['phone number'] ?? 2;
-      const addressIdx = headerMap['address'] ?? 5;
+      const nameIdx = headerMap['name'] ?? 0;
+      const emailIdx = headerMap['email'] ?? 999;
+      const phoneIdx = headerMap['phone'] ?? 3;
+      const addressIdx = headerMap['address'] ?? 4;
       const serviceIdx = headerMap['service'] ?? 6;
       const dateIdx = headerMap['date'] ?? 1;
       const timeIdx = headerMap['time'] ?? 2;
-      const priceIdx = headerMap['charges'] ?? headerMap['price'] ?? headerMap['amount'] ?? 7;
+      const priceIdx = headerMap['charges'] ?? 7;
 
       let customerName = row[nameIdx]?.trim();
       const customerEmail = row[emailIdx]?.trim() || `customer_${i}@booking.local`;
@@ -79,11 +79,11 @@ export async function POST() {
         customerName = `Customer #${i}`;
       }
 
-      const existing = queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
+      const existing = await queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
       let customerId = (existing[0] as any)?.id;
 
       if (!customerId) {
-        const result = runDb(
+        const result = await runDb(
           'INSERT INTO Customer (name, email, phone, address) VALUES (?, ?, ?, ?)',
           [customerName, customerEmail, customerPhone, customerAddress]
         );
@@ -147,15 +147,22 @@ export async function POST() {
 
         const jobDate = parsedDate.toISOString();
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const jobStatus = parsedDate < today ? 'completed' : 'pending';
+        // If job date/time is in the past (now), mark as completed
+        const now = new Date();
+        const jobStatus = parsedDate < now ? 'completed' : 'pending';
 
-        runDb(
-          'INSERT INTO Job (title, address, date, price, status, customerId) VALUES (?, ?, ?, ?, ?, ?)',
-          [jobTitle, jobAddress, jobDate, jobPrice, jobStatus, customerId]
+        const jobExists = await queryDb(
+          'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ?',
+          [customerId, jobTitle, jobDate]
         );
-        jobsAdded++;
+
+        if (jobExists.length === 0) {
+          await runDb(
+            'INSERT INTO Job (title, address, date, price, status, customerId) VALUES (?, ?, ?, ?, ?, ?)',
+            [jobTitle, jobAddress, jobDate, jobPrice, jobStatus, customerId]
+          );
+          jobsAdded++;
+        }
       }
     }
 

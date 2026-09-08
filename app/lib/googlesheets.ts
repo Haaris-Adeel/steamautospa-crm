@@ -64,23 +64,29 @@ export async function getValidAccessToken(refreshToken: string) {
   return data.access_token || '';
 }
 
-export function getSetting(key: string): string | null {
-  const result = queryDb('SELECT value FROM Settings WHERE key = ?', [key]);
+export async function getSetting(key: string): Promise<string | null> {
+  const result = await queryDb('SELECT value FROM Settings WHERE key = ?', [key]);
   return (result[0] as any)?.value || null;
 }
 
-export function setSetting(key: string, value: string) {
-  runDb('INSERT OR REPLACE INTO Settings (key, value, updatedAt) VALUES (?, ?, CURRENT_TIMESTAMP)', [key, value]);
+export async function setSetting(key: string, value: string): Promise<void> {
+  await runDb('INSERT OR REPLACE INTO Settings (key, value, updatedAt) VALUES (?, ?, CURRENT_TIMESTAMP)', [key, value]);
 }
 
 export async function getGoogleSheetsData(sheetId: string, accessToken: string, sheetName: string = 'Phase II') {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!A:Z`;
+  // Quote sheet names that contain spaces - underscores don't need quoting
+  const quotedSheetName = sheetName.includes(' ') ? `'${sheetName}'` : sheetName;
+  // Use explicit range A1:Z1000 instead of open-ended columns to avoid API parsing issues
+  const encodedRange = encodeURIComponent(`${quotedSheetName}!A1:Z1000`);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodedRange}`;
 
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 
   if (!response.ok) {
+    const errorData = await response.text();
+    console.error(`Google Sheets API error for "${sheetName}":`, response.status, errorData);
     throw new Error(`Failed to fetch Google Sheet "${sheetName}": ${response.statusText}`);
   }
 

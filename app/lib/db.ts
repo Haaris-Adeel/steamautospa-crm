@@ -1,24 +1,33 @@
+'use server';
+
 import { PrismaClient } from '@prisma/client';
 
-let prismaClient: PrismaClient;
+const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined };
 
-function getPrisma() {
-  if (!prismaClient) {
-    prismaClient = new PrismaClient();
+const prisma = globalForPrisma.prisma || new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+
+export async function queryDb(sql: string, params: any[] = []) {
+  try {
+    return await prisma.$queryRawUnsafe(sql, ...params);
+  } catch (error) {
+    console.error('Query error:', error);
+    throw error;
   }
-  return prismaClient;
 }
 
-export function queryDb(sql: string, params: any[] = []) {
-  const client = getPrisma();
-  return client.$queryRawUnsafe(sql, ...params);
-}
-
-export function runDb(sql: string, params: any[] = []) {
-  const client = getPrisma();
-  return client.$executeRawUnsafe(sql, ...params);
+export async function runDb(sql: string, params: any[] = []) {
+  try {
+    return await prisma.$executeRawUnsafe(sql, ...params);
+  } catch (error) {
+    console.error('Execute error:', error);
+    throw error;
+  }
 }
 
 export function getDb_() {
-  return getPrisma();
+  return prisma;
 }
