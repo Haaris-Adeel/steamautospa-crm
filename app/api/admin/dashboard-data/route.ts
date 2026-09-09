@@ -57,13 +57,8 @@ export async function GET() {
     );
     const jobsCompleted = jobsCompletedResult.length > 0 ? jobsCompletedResult[0].count : 0;
 
-    // Expenses Last 30 Days
-    const expensesThisMonthResult = await queryDb(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM "Expense"
-       WHERE DATE("date") >= $1::date`,
-      [last30DaysStr]
-    );
-    const expensesThisMonth = expensesThisMonthResult.length > 0 ? expensesThisMonthResult[0].total : 0;
+    // Expenses Last 30 Days (Expense table does not exist yet - placeholder)
+    const expensesThisMonth = 0;
 
     // Estimated Profit
     const estimatedProfit = revenueThisMonth - expensesThisMonth;
