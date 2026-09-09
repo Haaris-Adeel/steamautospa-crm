@@ -107,3 +107,9 @@ model MetricsSnapshot {
 
   @@unique([period])
 }
+
+model Settings {
+  key       String    @id
+  value     String
+  updatedAt DateTime  @updatedAt
+}
