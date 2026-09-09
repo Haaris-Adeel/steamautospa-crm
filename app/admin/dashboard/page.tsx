@@ -74,6 +74,10 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       const res = await fetch('/api/admin/dashboard-data');
+      if (!res.ok) {
+        console.error('Dashboard API error:', res.status);
+        return;
+      }
       const data = await res.json();
       setData(data);
     } catch (error) {
@@ -84,6 +88,10 @@ export default function AdminDashboard() {
   const fetchMetricsData = async (period: string) => {
     try {
       const res = await fetch(`/api/metrics/fetch?period=${period}`);
+      if (!res.ok) {
+        console.error('Metrics API error:', res.status);
+        return;
+      }
       const data = await res.json();
       setMetrics(data);
     } catch (error) {
