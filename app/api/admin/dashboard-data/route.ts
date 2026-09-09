@@ -1,10 +1,9 @@
+import { requireAdmin } from '@/app/lib/auth';
 import { queryDb } from '@/app/lib/db';
 
 export async function GET() {
   try {
-    // Debug: Removed auth check to isolate query issues
-    // TODO: Re-add requireAdmin() after debugging auth issue
-    // await requireAdmin();
+    await requireAdmin();
 
     const today = new Date();
     const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
