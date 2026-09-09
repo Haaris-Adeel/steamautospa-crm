@@ -2,6 +2,7 @@ import { queryDb } from '@/app/lib/db';
 
 export async function GET() {
   try {
+    // Debug: Removed auth check to isolate query issues
     // TODO: Re-add requireAdmin() after debugging auth issue
     // await requireAdmin();
 
