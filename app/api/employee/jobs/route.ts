@@ -11,20 +11,20 @@ export async function GET() {
 
     const jobs = await queryDb(
       `SELECT
-        Job.id,
-        Job.title,
-        Job.description,
-        Job.address,
-        Job.date,
-        Job.status,
-        Job.price,
-        Customer.name as customerName,
-        Customer.email as customerEmail,
-        Customer.phone as customerPhone
-       FROM Job
-       LEFT JOIN Customer ON Job.customerId = Customer.id
-       WHERE Job.assignedToId = ? AND Job.date >= datetime('now')
-       ORDER BY Job.date ASC`,
+        "Job".id,
+        "Job".title,
+        "Job".description,
+        "Job".address,
+        "Job".date,
+        "Job".status,
+        "Job".price,
+        "Customer".name as "customerName",
+        "Customer".email as "customerEmail",
+        "Customer".phone as "customerPhone"
+       FROM "Job"
+       LEFT JOIN "Customer" ON "Job"."customerId" = "Customer".id
+       WHERE "Job"."assignedToId" = $1 AND "Job".date >= CURRENT_TIMESTAMP
+       ORDER BY "Job".date ASC`,
       [user.id]
     );
 

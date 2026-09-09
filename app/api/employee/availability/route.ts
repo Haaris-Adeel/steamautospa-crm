@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     const availability = await queryDb(
-      `SELECT * FROM EmployeeAvailability WHERE userId = ?`,
+      `SELECT * FROM "EmployeeAvailability" WHERE "userId" = $1`,
       [user.id]
     );
 
@@ -31,15 +31,15 @@ export async function POST(request: Request) {
     const availability = await request.json();
 
     const existing = await queryDb(
-      `SELECT id FROM EmployeeAvailability WHERE userId = ?`,
+      `SELECT id FROM "EmployeeAvailability" WHERE "userId" = $1`,
       [user.id]
     );
 
     if (existing && (existing as any)[0]) {
       await queryDb(
-        `UPDATE EmployeeAvailability
-         SET monday = ?, tuesday = ?, wednesday = ?, thursday = ?, friday = ?, saturday = ?, sunday = ?, updatedAt = datetime('now')
-         WHERE userId = ?`,
+        `UPDATE "EmployeeAvailability"
+         SET monday = $1, tuesday = $2, wednesday = $3, thursday = $4, friday = $5, saturday = $6, sunday = $7, "updatedAt" = CURRENT_TIMESTAMP
+         WHERE "userId" = $8`,
         [
           availability.monday,
           availability.tuesday,
@@ -53,8 +53,8 @@ export async function POST(request: Request) {
       );
     } else {
       await queryDb(
-        `INSERT INTO EmployeeAvailability (userId, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO "EmployeeAvailability" ("userId", monday, tuesday, wednesday, thursday, friday, saturday, sunday)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           user.id,
           availability.monday,

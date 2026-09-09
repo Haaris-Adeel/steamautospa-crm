@@ -20,8 +20,8 @@ export async function GET() {
 
     // Get jobs for this week
     const jobs = await queryDb(
-      `SELECT * FROM Job
-       WHERE date >= ? AND date <= ?
+      `SELECT * FROM "Job"
+       WHERE date >= $1 AND date <= $2
        ORDER BY date ASC`,
       [startIso, endIso]
     );
@@ -35,7 +35,7 @@ export async function GET() {
 
     const customers = [];
     for (const customerId of Array.from(customerIds)) {
-      const result = await queryDb('SELECT * FROM Customer WHERE id = ?', [customerId]);
+      const result = await queryDb('SELECT * FROM "Customer" WHERE id = $1', [customerId]);
       if (result.length > 0) {
         customers.push(result[0]);
       }

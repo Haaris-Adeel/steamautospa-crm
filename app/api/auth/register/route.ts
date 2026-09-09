@@ -9,7 +9,7 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const existing = await queryDb('SELECT id FROM User WHERE email = ?', [email]);
+    const existing = await queryDb('SELECT id FROM "User" WHERE email = $1', [email]);
     if (existing.length > 0) {
       return Response.json({ error: 'User exists' }, { status: 400 });
     }
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const hashedPassword = await hash(password, 10);
 
     const result = await runDb(
-      'INSERT INTO User (email, password, name, role) VALUES (?, ?, ?, ?)',
+      'INSERT INTO "User" (email, password, name, role) VALUES ($1, $2, $3, $4)',
       [email, hashedPassword, name, role === 'admin' ? 'admin' : 'employee']
     );
 

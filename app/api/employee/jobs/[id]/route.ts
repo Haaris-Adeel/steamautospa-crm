@@ -16,7 +16,7 @@ export async function PATCH(
 
     if (action === 'accept') {
       await queryDb(
-        `UPDATE Job SET status = ? WHERE id = ? AND assignedToId = ?`,
+        `UPDATE "Job" SET status = $1 WHERE id = $2 AND "assignedToId" = $3`,
         ['in_progress', parseInt(params.id), user.id]
       );
 

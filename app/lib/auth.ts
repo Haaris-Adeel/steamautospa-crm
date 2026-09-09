@@ -8,7 +8,7 @@ export async function getCurrentUser() {
 
     if (!userId) return null;
 
-    const users = await queryDb('SELECT id, email, name, role FROM User WHERE id = ?', [parseInt(userId)]);
+    const users = await queryDb('SELECT id, email, name, role FROM "User" WHERE id = $1', [parseInt(userId)]);
     return (users as any[])[0] || null;
   } catch {
     return null;

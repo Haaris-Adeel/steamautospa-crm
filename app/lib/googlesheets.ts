@@ -65,12 +65,12 @@ export async function getValidAccessToken(refreshToken: string) {
 }
 
 export async function getSetting(key: string): Promise<string | null> {
-  const result = await queryDb('SELECT value FROM Settings WHERE key = ?', [key]);
+  const result = await queryDb('SELECT value FROM "Settings" WHERE key = $1', [key]);
   return (result[0] as any)?.value || null;
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
-  await runDb('INSERT OR REPLACE INTO Settings (key, value, updatedAt) VALUES (?, ?, CURRENT_TIMESTAMP)', [key, value]);
+  await runDb('INSERT INTO "Settings" (key, value, "updatedAt") VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (key) DO UPDATE SET value = $2, "updatedAt" = CURRENT_TIMESTAMP', [key, value]);
 }
 
 export async function getGoogleSheetsData(sheetId: string, accessToken: string, sheetName: string = 'Phase II') {

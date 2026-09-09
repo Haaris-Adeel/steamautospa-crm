@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const period = searchParams.get('period') || 'last7days';
 
-    const metrics = await queryDb('SELECT * FROM MetricsSnapshot WHERE period = ?', [period]);
+    const metrics = await queryDb('SELECT * FROM "MetricsSnapshot" WHERE period = $1', [period]);
 
     if (metrics.length === 0) {
       return Response.json({

@@ -7,35 +7,35 @@ async function cleanup() {
 
     // Find and delete jobs with invalid/NaN dates
     const invalidJobs = await queryDb(
-      `SELECT id, title, date, customerId FROM Job WHERE date = 'Invalid Date' OR date IS NULL OR date = ''`
+      `SELECT id, title, date, "customerId" FROM "Job" WHERE date = 'Invalid Date' OR date IS NULL OR date = ''`
     );
 
     let deletedCount = 0;
     for (const job of invalidJobs) {
-      await runDb('DELETE FROM Job WHERE id = ?', [job.id]);
+      await runDb('DELETE FROM "Job" WHERE id = $1', [job.id]);
       deletedCount++;
       console.log(`Deleted invalid job: ${job.title} (ID: ${job.id})`);
     }
 
     // Also check for exact duplicates (same customerId, title, and valid date)
     const duplicates = await queryDb(
-      `SELECT customerId, title, date, COUNT(*) as cnt
-       FROM Job
+      `SELECT "customerId", title, date, COUNT(*) as cnt
+       FROM "Job"
        WHERE date NOT IN ('Invalid Date', '') AND date IS NOT NULL
-       GROUP BY customerId, title, date
-       HAVING cnt > 1`
+       GROUP BY "customerId", title, date
+       HAVING COUNT(*) > 1`
     );
 
     let dedupCount = 0;
     for (const dup of duplicates) {
       // Keep the first one, delete the rest
       const allDups = await queryDb(
-        'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ? ORDER BY id ASC',
+        'SELECT id FROM "Job" WHERE "customerId" = $1 AND title = $2 AND date = $3 ORDER BY id ASC',
         [dup.customerId, dup.title, dup.date]
       );
 
       for (let i = 1; i < allDups.length; i++) {
-        await runDb('DELETE FROM Job WHERE id = ?', [(allDups[i] as any).id]);
+        await runDb('DELETE FROM "Job" WHERE id = $1', [(allDups[i] as any).id]);
         dedupCount++;
       }
     }

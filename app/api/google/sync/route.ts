@@ -95,12 +95,12 @@ export async function POST(req: Request) {
       }
 
       // Check if customer exists
-      const existing = await queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
+      const existing = await queryDb('SELECT id FROM "Customer" WHERE email = $1', [customerEmail]);
       let customerId = (existing[0] as any)?.id;
 
       if (!customerId) {
         const result = await runDb(
-          'INSERT INTO Customer (name, email, phone, address) VALUES (?, ?, ?, ?)',
+          'INSERT INTO "Customer" (name, email, phone, address) VALUES ($1, $2, $3, $4)',
           [customerName, customerEmail, customerPhone, customerAddress]
         );
         customerId = Number(result.lastInsertRowid);
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
       } else {
         // Update customer info if it exists (name, phone, address might have changed)
         await runDb(
-          'UPDATE Customer SET name = ?, phone = ?, address = ? WHERE id = ?',
+          'UPDATE "Customer" SET name = $1, phone = $2, address = $3 WHERE id = $4',
           [customerName, customerPhone, customerAddress, customerId]
         );
       }
@@ -177,13 +177,13 @@ export async function POST(req: Request) {
         const jobStatus = parsedDate < now ? 'completed' : 'pending';
 
         const jobExists = await queryDb(
-          'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ?',
+          'SELECT id FROM "Job" WHERE "customerId" = $1 AND title = $2 AND date = $3',
           [customerId, jobTitle, jobDate]
         );
 
         if (jobExists.length === 0) {
           await runDb(
-            'INSERT INTO Job (title, address, date, price, status, customerId) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT INTO "Job" (title, address, date, price, status, "customerId") VALUES ($1, $2, $3, $4, $5, $6)',
             [jobTitle, jobAddress, jobDate, jobPrice, jobStatus, customerId]
           );
           jobsAdded++;
@@ -192,14 +192,14 @@ export async function POST(req: Request) {
     }
 
     // Delete jobs for customers that are no longer in the sheet
-    const allCustomersWithJobs = await queryDb('SELECT DISTINCT customerId FROM Job');
+    const allCustomersWithJobs = await queryDb('SELECT DISTINCT "customerId" FROM "Job"');
     for (const row of allCustomersWithJobs) {
       const customerId = (row as any).customerId;
-      const customer = await queryDb('SELECT email FROM Customer WHERE id = ?', [customerId]);
+      const customer = await queryDb('SELECT email FROM "Customer" WHERE id = $1', [customerId]);
       if (customer.length > 0) {
         const customerEmail = (customer[0] as any).email;
         if (!sheetEmails.has(customerEmail)) {
-          const deleted = await runDb('DELETE FROM Job WHERE customerId = ?', [customerId]);
+          const deleted = await runDb('DELETE FROM "Job" WHERE "customerId" = $1', [customerId]);
           deletedJobs += deleted.changes || 0;
         }
       }

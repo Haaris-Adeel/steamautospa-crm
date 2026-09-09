@@ -6,10 +6,10 @@ export async function GET() {
     await requireAdmin();
 
     const jobs = await queryDb(`
-      SELECT Job.*, Customer.name as customerName, Customer.email as customerEmail, Customer.phone as customerPhone
-      FROM Job
-      LEFT JOIN Customer ON Job.customerId = Customer.id
-      ORDER BY Job.date DESC
+      SELECT "Job".*, "Customer".name as "customerName", "Customer".email as "customerEmail", "Customer".phone as "customerPhone"
+      FROM "Job"
+      LEFT JOIN "Customer" ON "Job"."customerId" = "Customer".id
+      ORDER BY "Job".date DESC
     `);
 
     return Response.json(jobs.map((job: any) => ({

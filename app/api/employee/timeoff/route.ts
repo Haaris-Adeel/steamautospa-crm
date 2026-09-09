@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     const requests = await queryDb(
-      `SELECT * FROM TimeOffRequest WHERE userId = ? ORDER BY startDate DESC`,
+      `SELECT * FROM "TimeOffRequest" WHERE "userId" = $1 ORDER BY "startDate" DESC`,
       [user.id]
     );
 
@@ -35,8 +35,8 @@ export async function POST(request: Request) {
     }
 
     await queryDb(
-      `INSERT INTO TimeOffRequest (userId, startDate, endDate, reason, status)
-       VALUES (?, ?, ?, ?, 'pending')`,
+      `INSERT INTO "TimeOffRequest" ("userId", "startDate", "endDate", reason, status)
+       VALUES ($1, $2, $3, $4, 'pending')`,
       [user.id, startDate, endDate, reason || null]
     );
 

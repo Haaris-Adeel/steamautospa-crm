@@ -7,7 +7,7 @@ export async function POST() {
     await requireAdmin();
 
     // Clear all jobs
-    await runDb('DELETE FROM Job');
+    await runDb('DELETE FROM "Job"');
 
     // Now sync from Google Sheets
     const googleEnabled = await getSetting('google_sheets_enabled') === 'true';
@@ -79,12 +79,12 @@ export async function POST() {
         customerName = `Customer #${i}`;
       }
 
-      const existing = await queryDb('SELECT id FROM Customer WHERE email = ?', [customerEmail]);
+      const existing = await queryDb('SELECT id FROM "Customer" WHERE email = $1', [customerEmail]);
       let customerId = (existing[0] as any)?.id;
 
       if (!customerId) {
         const result = await runDb(
-          'INSERT INTO Customer (name, email, phone, address) VALUES (?, ?, ?, ?)',
+          'INSERT INTO "Customer" (name, email, phone, address) VALUES ($1, $2, $3, $4)',
           [customerName, customerEmail, customerPhone, customerAddress]
         );
         customerId = Number(result.lastInsertRowid);
@@ -152,13 +152,13 @@ export async function POST() {
         const jobStatus = parsedDate < now ? 'completed' : 'pending';
 
         const jobExists = await queryDb(
-          'SELECT id FROM Job WHERE customerId = ? AND title = ? AND date = ?',
+          'SELECT id FROM "Job" WHERE "customerId" = $1 AND title = $2 AND date = $3',
           [customerId, jobTitle, jobDate]
         );
 
         if (jobExists.length === 0) {
           await runDb(
-            'INSERT INTO Job (title, address, date, price, status, customerId) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT INTO "Job" (title, address, date, price, status, "customerId") VALUES ($1, $2, $3, $4, $5, $6)',
             [jobTitle, jobAddress, jobDate, jobPrice, jobStatus, customerId]
           );
           jobsAdded++;

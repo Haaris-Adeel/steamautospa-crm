@@ -14,22 +14,22 @@ export async function POST(req: Request) {
 
     // Ensure MetricsSnapshot table exists
     try {
-      await runDb(`CREATE TABLE IF NOT EXISTS MetricsSnapshot (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+      await runDb(`CREATE TABLE IF NOT EXISTS "MetricsSnapshot" (
+        id SERIAL PRIMARY KEY,
         period TEXT UNIQUE NOT NULL,
-        adSpend REAL DEFAULT 0,
+        "adSpend" REAL DEFAULT 0,
         leads INTEGER DEFAULT 0,
-        peopleBooked INTEGER DEFAULT 0,
-        cashCollected REAL DEFAULT 0,
-        dollarsBooked REAL DEFAULT 0,
-        costPerLead REAL DEFAULT 0,
-        bookingRate REAL DEFAULT 0,
-        avgDealSize REAL DEFAULT 0,
-        cashCollectionPct REAL DEFAULT 0,
-        bookedRoas REAL DEFAULT 0,
-        cashRoas REAL DEFAULT 0,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        "peopleBooked" INTEGER DEFAULT 0,
+        "cashCollected" REAL DEFAULT 0,
+        "dollarsBooked" REAL DEFAULT 0,
+        "costPerLead" REAL DEFAULT 0,
+        "bookingRate" REAL DEFAULT 0,
+        "avgDealSize" REAL DEFAULT 0,
+        "cashCollectionPct" REAL DEFAULT 0,
+        "bookedRoas" REAL DEFAULT 0,
+        "cashRoas" REAL DEFAULT 0,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
     } catch (e) {
       console.log('Table creation attempt:', e);
@@ -184,14 +184,14 @@ export async function POST(req: Request) {
     let updated = 0;
 
     for (const period of periods) {
-      const existing = await queryDb('SELECT id FROM MetricsSnapshot WHERE period = ?', [period.name]);
+      const existing = await queryDb('SELECT id FROM "MetricsSnapshot" WHERE period = $1', [period.name]);
 
       if (existing.length === 0) {
         await runDb(
-          `INSERT INTO MetricsSnapshot (
-            period, adSpend, leads, peopleBooked, cashCollected, dollarsBooked,
-            costPerLead, bookingRate, avgDealSize, cashCollectionPct, bookedRoas, cashRoas
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "MetricsSnapshot" (
+            period, "adSpend", leads, "peopleBooked", "cashCollected", "dollarsBooked",
+            "costPerLead", "bookingRate", "avgDealSize", "cashCollectionPct", "bookedRoas", "cashRoas"
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             period.name, period.adSpend, period.leads, period.booked, period.cashCollected, period.dollarsBooked,
             period.costPerLead, period.bookingRate, period.avgDealSize, period.cashCollectionPct, period.bookedRoas, period.cashRoas
@@ -199,10 +199,10 @@ export async function POST(req: Request) {
         );
       } else {
         await runDb(
-          `UPDATE MetricsSnapshot SET
-            adSpend = ?, leads = ?, peopleBooked = ?, cashCollected = ?, dollarsBooked = ?,
-            costPerLead = ?, bookingRate = ?, avgDealSize = ?, cashCollectionPct = ?, bookedRoas = ?, cashRoas = ?, updatedAt = CURRENT_TIMESTAMP
-            WHERE period = ?`,
+          `UPDATE "MetricsSnapshot" SET
+            "adSpend" = $1, leads = $2, "peopleBooked" = $3, "cashCollected" = $4, "dollarsBooked" = $5,
+            "costPerLead" = $6, "bookingRate" = $7, "avgDealSize" = $8, "cashCollectionPct" = $9, "bookedRoas" = $10, "cashRoas" = $11, "updatedAt" = CURRENT_TIMESTAMP
+            WHERE period = $12`,
           [
             period.adSpend, period.leads, period.booked, period.cashCollected, period.dollarsBooked,
             period.costPerLead, period.bookingRate, period.avgDealSize, period.cashCollectionPct, period.bookedRoas, period.cashRoas, period.name

@@ -6,14 +6,14 @@ export async function GET() {
     await requireAdmin();
 
     // Get count before delete
-    const countBefore = await queryDb('SELECT COUNT(*) as count FROM Job');
+    const countBefore = await queryDb('SELECT COUNT(*) as count FROM "Job"');
     const before = (countBefore[0] as any)?.count || 0;
 
     // Delete all jobs
-    await runDb('DELETE FROM Job');
+    await runDb('DELETE FROM "Job"');
 
     // Verify deletion
-    const countAfter = await queryDb('SELECT COUNT(*) as count FROM Job');
+    const countAfter = await queryDb('SELECT COUNT(*) as count FROM "Job"');
     const after = (countAfter[0] as any)?.count || 0;
 
     return Response.json({
