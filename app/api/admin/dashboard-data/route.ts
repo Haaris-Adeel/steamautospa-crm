@@ -140,8 +140,11 @@ export async function GET() {
       revenueByService: revenueByService || {},
       monthlyRevenue: monthlyRevenue || {},
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Dashboard data error:', error);
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    return Response.json({
+      error: error?.message || String(error),
+      stack: error?.stack
+    }, { status: 500 });
   }
 }
