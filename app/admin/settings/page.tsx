@@ -14,11 +14,20 @@ interface GoogleSettings {
   bookingsEnabled: boolean;
 }
 
+interface MetaSettings {
+  accessToken: string | null;
+  adAccountId: string | null;
+  lastSync: string | null;
+}
+
 export default function SettingsPage() {
   const [googleSettings, setGoogleSettings] = useState<GoogleSettings | null>(null);
+  const [metaSettings, setMetaSettings] = useState<MetaSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [metricsSheetId, setMetricsSheetId] = useState('');
   const [bookingsSheetId, setBookingsSheetId] = useState('');
+  const [metaAccessToken, setMetaAccessToken] = useState('');
+  const [metaAdAccountId, setMetaAdAccountId] = useState('');
   const [message, setMessage] = useState('');
   const router = useRouter();
 
@@ -35,6 +44,7 @@ export default function SettingsPage() {
           router.push('/employee');
         }
         await fetchGoogleSettings();
+        await fetchMetaSettings();
         setLoading(false);
       } catch {
         router.push('/login');
@@ -53,6 +63,43 @@ export default function SettingsPage() {
       setBookingsSheetId(data.bookingsSheetId || '');
     } catch (error) {
       console.error('Failed to fetch google settings:', error);
+    }
+  };
+
+  const fetchMetaSettings = async () => {
+    try {
+      const res = await fetch('/api/settings/meta');
+      const data = await res.json();
+      setMetaSettings(data);
+      setMetaAccessToken(data.accessToken || '');
+      setMetaAdAccountId(data.adAccountId || '');
+    } catch (error) {
+      console.error('Failed to fetch meta settings:', error);
+    }
+  };
+
+  const handleSaveMetaSettings = async () => {
+    if (!metaAccessToken.trim() || !metaAdAccountId.trim()) {
+      setMessage('✗ Please enter both Meta Access Token and Ad Account ID');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/settings/meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: metaAccessToken, adAccountId: metaAdAccountId })
+      });
+
+      if (res.ok) {
+        setMessage('✓ Meta settings saved successfully');
+        await fetchMetaSettings();
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage('✗ Failed to save Meta settings');
+      }
+    } catch (error) {
+      setMessage(`✗ Error: ${String(error)}`);
     }
   };
 
@@ -319,6 +366,92 @@ export default function SettingsPage() {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Meta Ads Section */}
+        <div className="bg-white p-6 rounded-lg shadow mb-8">
+          <h2 className="text-xl font-bold mb-4">📱 Meta Ads Integration</h2>
+
+          {metaSettings?.accessToken ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded text-green-700">
+                ✓ Meta Ads connected
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2">Meta Access Token</label>
+                <input
+                  type="password"
+                  value={metaAccessToken}
+                  onChange={(e) => setMetaAccessToken(e.target.value)}
+                  placeholder="Your Meta access token"
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-mono text-sm"
+                />
+                <p className="text-sm text-gray-600 mt-1">
+                  Get from: Meta Business Suite → Settings → Apps and Websites
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2">Meta Ad Account ID</label>
+                <input
+                  type="text"
+                  value={metaAdAccountId}
+                  onChange={(e) => setMetaAdAccountId(e.target.value)}
+                  placeholder="act_XXXXXXXXXX"
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-mono text-sm"
+                />
+                <p className="text-sm text-gray-600 mt-1">
+                  Format: act_XXXXXXXXXX (found in Ads Manager URL)
+                </p>
+              </div>
+
+              <button
+                onClick={handleSaveMetaSettings}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Update Meta Settings
+              </button>
+
+              {metaSettings?.lastSync && (
+                <div className="text-sm text-gray-600">
+                  Last synced: {new Date(metaSettings.lastSync).toLocaleString()}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                Connect your Meta Ads account to automatically sync campaign performance data.
+              </p>
+              <div>
+                <label className="block font-semibold mb-2">Meta Access Token</label>
+                <input
+                  type="password"
+                  value={metaAccessToken}
+                  onChange={(e) => setMetaAccessToken(e.target.value)}
+                  placeholder="Your Meta access token"
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-mono text-sm"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-2">Meta Ad Account ID</label>
+                <input
+                  type="text"
+                  value={metaAdAccountId}
+                  onChange={(e) => setMetaAdAccountId(e.target.value)}
+                  placeholder="act_XXXXXXXXXX"
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-mono text-sm"
+                />
+              </div>
+              <button
+                onClick={handleSaveMetaSettings}
+                className="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 font-semibold"
+              >
+                Connect Meta Ads
+              </button>
             </div>
           )}
         </div>
