@@ -83,11 +83,11 @@ export async function POST() {
       let customerId = (existing[0] as any)?.id;
 
       if (!customerId) {
-        const result = await runDb(
-          'INSERT INTO "Customer" (name, email, phone, address) VALUES ($1, $2, $3, $4)',
+        const result = await queryDb(
+          'INSERT INTO "Customer" (name, email, phone, address) VALUES ($1, $2, $3, $4) RETURNING id',
           [customerName, customerEmail, customerPhone, customerAddress]
         );
-        customerId = Number(result.lastInsertRowid);
+        customerId = (result[0] as any).id;
         customersAdded++;
       }
 
