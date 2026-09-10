@@ -5,15 +5,25 @@ export async function GET() {
   try {
     await requireAdmin();
 
+    const [enabled, sheetId, lastSync, metricsSheetId, metricsLastSync, bookingsSheetId, bookingsLastSync] = await Promise.all([
+      getSetting('google_sheets_enabled'),
+      getSetting('google_sheet_id'),
+      getSetting('google_last_sync'),
+      getSetting('metrics_sheet_id'),
+      getSetting('metrics_last_sync'),
+      getSetting('google_sheet_id'),
+      getSetting('google_last_sync')
+    ]);
+
     return Response.json({
-      enabled: getSetting('google_sheets_enabled') === 'true',
-      sheetId: getSetting('google_sheet_id') || '',
-      lastSync: getSetting('google_last_sync') || null,
-      metricsSheetId: getSetting('metrics_sheet_id') || '',
-      metricsLastSync: getSetting('metrics_last_sync') || null,
-      bookingsSheetId: getSetting('google_sheet_id') || '',
-      bookingsLastSync: getSetting('google_last_sync') || null,
-      bookingsEnabled: getSetting('google_sheets_enabled') === 'true'
+      enabled: enabled === 'true',
+      sheetId: sheetId || '',
+      lastSync: lastSync || null,
+      metricsSheetId: metricsSheetId || '',
+      metricsLastSync: metricsLastSync || null,
+      bookingsSheetId: bookingsSheetId || '',
+      bookingsLastSync: bookingsLastSync || null,
+      bookingsEnabled: enabled === 'true'
     });
   } catch {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
