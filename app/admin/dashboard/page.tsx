@@ -55,6 +55,8 @@ export default function AdminDashboard() {
   const [syncMessage, setSyncMessage] = useState('');
   const [metricsPeriod, setMetricsPeriod] = useState('last7days');
   const [metaSyncLoading, setMetaSyncLoading] = useState(false);
+  const [dollarsBooked, setDollarsBooked] = useState('');
+  const [cashCollected, setCashCollected] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -142,6 +144,26 @@ export default function AdminDashboard() {
       setSyncMessage('✗ Meta sync error');
     } finally {
       setMetaSyncLoading(false);
+    }
+  };
+
+  const handleSaveDailyBookings = async () => {
+    try {
+      const res = await fetch('/api/meta/daily-input', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dollarsBooked: parseFloat(dollarsBooked || '0'),
+          cashCollected: parseFloat(cashCollected || '0')
+        })
+      });
+      if (res.ok) {
+        setSyncMessage('✓ Daily bookings saved');
+        await fetchMetaMetrics();
+        setTimeout(() => setSyncMessage(''), 3000);
+      }
+    } catch (error) {
+      setSyncMessage('✗ Failed to save');
     }
   };
 
@@ -392,6 +414,72 @@ export default function AdminDashboard() {
                   <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
                     <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Conversions</p>
                     <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metaMetrics.conversions}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Daily Bookings Input */}
+            {metaMetrics && (
+              <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '20px' }}>
+                <p className="text-xs uppercase tracking-wider mb-4" style={{ color: '#94A3B8' }}>Daily Bookings Input</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '12px', display: 'block', marginBottom: '6px' }}>
+                      Dollars Booked
+                    </label>
+                    <input
+                      type="number"
+                      value={dollarsBooked}
+                      onChange={(e) => setDollarsBooked(e.target.value)}
+                      placeholder="0.00"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        backgroundColor: '#0F172A',
+                        border: '1px solid #334155',
+                        borderRadius: '4px',
+                        color: '#FFFFFF',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '12px', display: 'block', marginBottom: '6px' }}>
+                      Cash Collected
+                    </label>
+                    <input
+                      type="number"
+                      value={cashCollected}
+                      onChange={(e) => setCashCollected(e.target.value)}
+                      placeholder="0.00"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        backgroundColor: '#0F172A',
+                        border: '1px solid #334155',
+                        borderRadius: '4px',
+                        color: '#FFFFFF',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <button
+                      onClick={handleSaveDailyBookings}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#10B981',
+                        color: '#FFFFFF',
+                        padding: '8px 12px',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Save
+                    </button>
                   </div>
                 </div>
               </div>
