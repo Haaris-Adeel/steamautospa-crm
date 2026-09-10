@@ -34,13 +34,27 @@ interface MetricsData {
   cashRoas: number;
 }
 
+interface MetaMetricsData {
+  spend: number;
+  leads: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  cpl: number;
+  roas: number;
+  dollarsBooked?: number;
+  cashCollected?: number;
+}
+
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [metaMetrics, setMetaMetrics] = useState<MetaMetricsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [metricsPeriod, setMetricsPeriod] = useState('last7days');
+  const [metaSyncLoading, setMetaSyncLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -68,6 +82,7 @@ export default function AdminDashboard() {
     if (!loading) {
       fetchDashboardData();
       fetchMetricsData(metricsPeriod);
+      fetchMetaMetrics();
     }
   }, [loading, metricsPeriod]);
 
@@ -96,6 +111,37 @@ export default function AdminDashboard() {
       setMetrics(data);
     } catch (error) {
       console.error('Failed to fetch metrics data:', error);
+    }
+  };
+
+  const fetchMetaMetrics = async () => {
+    try {
+      const res = await fetch('/api/meta/metrics');
+      if (!res.ok) {
+        return;
+      }
+      const data = await res.json();
+      setMetaMetrics(data);
+    } catch (error) {
+      console.error('Failed to fetch Meta metrics:', error);
+    }
+  };
+
+  const handleMetaSyncNow = async () => {
+    setMetaSyncLoading(true);
+    try {
+      const res = await fetch('/api/meta/sync', { method: 'POST' });
+      if (res.ok) {
+        setSyncMessage('✓ Meta sync completed');
+        await fetchMetaMetrics();
+        setTimeout(() => setSyncMessage(''), 3000);
+      } else {
+        setSyncMessage('✗ Meta sync failed');
+      }
+    } catch (error) {
+      setSyncMessage('✗ Meta sync error');
+    } finally {
+      setMetaSyncLoading(false);
     }
   };
 
@@ -299,6 +345,57 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Meta Ads Metrics */}
+            {metaMetrics && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-xs uppercase tracking-wider" style={{ color: '#94A3B8' }}>📱 Meta Ads Metrics</p>
+                  <button
+                    onClick={handleMetaSyncNow}
+                    disabled={metaSyncLoading}
+                    style={{
+                      backgroundColor: metaSyncLoading ? '#475569' : '#3B82F6',
+                      color: '#FFFFFF',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      border: 'none',
+                      cursor: metaSyncLoading ? 'default' : 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                  >
+                    {metaSyncLoading ? 'Syncing...' : 'Sync Meta Now'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-6 gap-3">
+                  <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                    <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Spend</p>
+                    <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>${metaMetrics.spend.toFixed(2)}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                    <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Leads</p>
+                    <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metaMetrics.leads}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                    <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Impressions</p>
+                    <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metaMetrics.impressions}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                    <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>CPL</p>
+                    <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>${metaMetrics.cpl.toFixed(2)}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                    <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>ROAS</p>
+                    <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metaMetrics.roas ? metaMetrics.roas.toFixed(2) + 'x' : '—'}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#1E293B', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                    <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '8px' }}>Conversions</p>
+                    <p style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 'bold' }}>{metaMetrics.conversions}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
