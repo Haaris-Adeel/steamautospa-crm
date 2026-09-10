@@ -113,3 +113,47 @@ model Settings {
   value     String
   updatedAt DateTime  @updatedAt
 }
+
+model MetaCampaign {
+  id                String    @id
+  name              String
+  status            String    @default("ACTIVE")
+  dailyMetrics      MetaDailyMetrics[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model MetaDailyMetrics {
+  id                Int       @id @default(autoincrement())
+  campaignId        String
+  campaign          MetaCampaign @relation(fields: [campaignId], references: [id])
+  date              DateTime
+  spend             Float     @default(0)
+  leads             Int       @default(0)
+  impressions       Int       @default(0)
+  clicks            Int       @default(0)
+  conversions       Int       @default(0)
+  cpl               Float     @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([campaignId, date])
+  @@index([campaignId])
+  @@index([date])
+}
+
+model MetaMetricsSnapshot {
+  id                Int       @id @default(autoincrement())
+  period            String    @unique
+  spend             Float     @default(0)
+  leads             Int       @default(0)
+  impressions       Int       @default(0)
+  clicks            Int       @default(0)
+  conversions       Int       @default(0)
+  cpl               Float     @default(0)
+  roas              Float     @default(0)
+  dollarsBooked     Float     @default(0)
+  cashCollected     Float     @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
